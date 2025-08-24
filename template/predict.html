@@ -1,0 +1,18 @@
+# 結果をHTMLで表示
+        html = f"<h2>顔の比較結果</h2>"
+        html += f"<p>全体の差異: {avg_diff:.2f} ピクセル</p>"
+        html += "<ul>"
+        for part, diff in part_diffs.items():
+            html += f"<li>{part}: {diff:.2f} ピクセル</li>"
+        html += "</ul>"
+
+        return html
+
+    return """
+    <h1>顔画像比較ツール</h1>
+    <form method="POST" enctype="multipart/form-data">
+        画像1: <input type="file" name="image1"><br><br>
+        画像2: <input type="file" name="image2"><br><br>
+        <input type="submit" value="比較する">
+    </form>
+    """

@@ -1,0 +1,257 @@
+顔認識
+
+
+import cv2
+import numpy as np
+import mediapipe as mp
+from scipy.spatial.distance import euclidean
+from scipy.spatial import ConvexHull
+import matplotlib.pyplot as plt
+from typing import Tuple, Dict, List
+
+class FaceDetailAnalyzer:
+    def __init__(self):
+        self.mp_face_mesh = mp.solutions.face_mesh
+        self.mp_drawing = mp.solutions.drawing_utils
+        
+        # 顔の重要な領域のランドマーク番号を定義
+        self.face_regions = {
+            'left_eye': [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246],
+            'right_eye': [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398],
+            'left_eyebrow': [46, 53, 52, 51, 48, 115, 131, 134, 102, 49, 220, 305],
+            'right_eyebrow': [276, 283, 282, 281, 278, 344, 360, 363, 331, 279, 440, 75],
+            'nose': [1, 2, 5, 4, 6, 19, 20, 94, 125, 141, 235, 236, 3, 51, 48, 115, 131, 134, 102],
+            'left_cheek': [116, 117, 118, 119, 120, 121, 126, 142, 36, 205, 206, 207, 213, 192, 147],
+            'right_cheek': [345, 346, 347, 348, 349, 350, 355, 371, 266, 425, 426, 427, 436, 416, 376],
+            'mouth': [61, 84, 17, 314, 405, 320, 307, 375, 321, 308, 324, 318],
+            'jawline': [172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288, 361, 323]
+        }
+    
+    def extract_landmarks(self, image_path: str) -> np.ndarray:
+        """画像から顔のランドマークを抽出"""
+        image = cv2.imread(image_path)
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        with self.mp_face_mesh.FaceMesh(
+            static_image_mode=True,
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5
+        ) as face_mesh:
+            results = face_mesh.process(rgb_image)
+            
+            if results.multi_face_landmarks:
+                landmarks = results.multi_face_landmarks[0]
+                h, w = image.shape[:2]
+                
+                # 正規化された座標を実際の座標に変換
+                points = []
+                for landmark in landmarks.landmark:
+                    x = int(landmark.x * w)
+                    y = int(landmark.y * h)
+                    points.append([x, y])
+                
+                return np.array(points)
+        
+        return None
+    
+    def calculate_region_area(self, landmarks: np.ndarray, region_indices: List[int]) -> float:
+        """指定された領域の面積を計算"""
+        region_points = landmarks[region_indices]
+        try:
+            hull = ConvexHull(region_points)
+            return hull.volume  # 2Dでは面積
+        except:
+            return 0.0
+    
+    def calculate_region_dimensions(self, landmarks: np.ndarray, region_indices: List[int]) -> Dict:
+        """領域の幅、高さ、中心座標を計算"""
+        region_points = landmarks[region_indices]
+        
+        min_x, min_y = np.min(region_points, axis=0)
+        max_x, max_y = np.max(region_points, axis=0)
+        
+        width = max_x - min_x
+        height = max_y - min_y
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+        
+        return {
+            'width': width,
+            'height': height,
+            'center': (center_x, center_y),
+            'area': self.calculate_region_area(landmarks, region_indices)
+        }
+    
+    def calculate_eye_openness(self, landmarks: np.ndarray, eye_indices: List[int]) -> float:
+        """目の開き具合を計算"""
+        eye_points = landmarks[eye_indices]
+        
+        # 上下の瞼の距離を複数点で測定
+        if len(eye_indices) >= 8:
+            # 目の上下の平均距離
+            top_points = eye_points[:len(eye_indices)//2]
+            bottom_points = eye_points[len(eye_indices)//2:]
+            
+            distances = []
+            for i in range(min(len(top_points), len(bottom_points))):
+                dist = euclidean(top_points[i], bottom_points[i])
+                distances.append(dist)
+            
+            return np.mean(distances) if distances else 0
+        
+        return 0
+    
+    def analyze_face_changes(self, image1_path: str, image2_path: str) -> Dict:
+        """2枚の画像間の顔の変化を分析"""
+        landmarks1 = self.extract_landmarks(image1_path)
+        landmarks2 = self.extract_landmarks(image2_path)
+        
+        if landmarks1 is None or landmarks2 is None:
+            return {"error": "顔のランドマークを検出できませんでした"}
+        
+        changes = {}
+        
+        # 各領域の変化を分析
+        for region_name, indices in self.face_regions.items():
+            dims1 = self.calculate_region_dimensions(landmarks1, indices)
+            dims2 = self.calculate_region_dimensions(landmarks2, indices)
+            
+            # 変化率を計算
+            width_change = ((dims2['width'] - dims1['width']) / dims1['width']) * 100 if dims1['width'] > 0 else 0
+            height_change = ((dims2['height'] - dims1['height']) / dims1['height']) * 100 if dims1['height'] > 0 else 0
+            area_change = ((dims2['area'] - dims1['area']) / dims1['area']) * 100 if dims1['area'] > 0 else 0
+            
+            changes[region_name] = {
+                'width_change_percent': round(width_change, 2),
+                'height_change_percent': round(height_change, 2),
+                'area_change_percent': round(area_change, 2),
+                'dimensions_before': dims1,
+                'dimensions_after': dims2
+            }
+        
+        # 特別な分析
+        changes['detailed_analysis'] = self.generate_detailed_analysis(changes)
+        
+        return changes
+    
+    def generate_detailed_analysis(self, changes: Dict) -> List[str]:
+        """変化の詳細分析を生成"""
+        analysis = []
+        
+        # 目の変化
+        left_eye = changes.get('left_eye', {})
+        right_eye = changes.get('right_eye', {})
+        
+        avg_eye_area_change = (left_eye.get('area_change_percent', 0) + 
+                              right_eye.get('area_change_percent', 0)) / 2
+        
+        if abs(avg_eye_area_change) > 5:
+            if avg_eye_area_change > 0:
+                analysis.append(f"目が大きくなっています（面積 +{avg_eye_area_change:.1f}%）")
+            else:
+                analysis.append(f"目が小さくなっています（面積 {avg_eye_area_change:.1f}%）")
+        
+        # 頬の変化
+        left_cheek = changes.get('left_cheek', {})
+        right_cheek = changes.get('right_cheek', {})
+        
+        avg_cheek_area_change = (left_cheek.get('area_change_percent', 0) + 
+                                right_cheek.get('area_change_percent', 0)) / 2
+        
+        if abs(avg_cheek_area_change) > 3:
+            if avg_cheek_area_change < 0:
+                analysis.append(f"頬がやせています（面積 {avg_cheek_area_change:.1f}%）")
+            else:
+                analysis.append(f"頬がふっくらしています（面積 +{avg_cheek_area_change:.1f}%）")
+        
+        # 鼻の変化
+        nose = changes.get('nose', {})
+        nose_width_change = nose.get('width_change_percent', 0)
+        
+        if abs(nose_width_change) > 3:
+            if nose_width_change > 0:
+                analysis.append(f"鼻が横に広がっています（幅 +{nose_width_change:.1f}%）")
+            else:
+                analysis.append(f"鼻が細くなっています（幅 {nose_width_change:.1f}%）")
+        
+        # 口の変化
+        mouth = changes.get('mouth', {})
+        mouth_width_change = mouth.get('width_change_percent', 0)
+        
+        if abs(mouth_width_change) > 3:
+            if mouth_width_change > 0:
+                analysis.append(f"口が大きくなっています（幅 +{mouth_width_change:.1f}%）")
+            else:
+                analysis.append(f"口が小さくなっています（幅 {mouth_width_change:.1f}%）")
+        
+        # 顎のライン
+        jawline = changes.get('jawline', {})
+        jaw_area_change = jawline.get('area_change_percent', 0)
+        
+        if abs(jaw_area_change) > 5:
+            if jaw_area_change < 0:
+                analysis.append(f"フェイスラインがシャープになっています（{jaw_area_change:.1f}%）")
+            else:
+                analysis.append(f"フェイスラインが丸くなっています（+{jaw_area_change:.1f}%）")
+        
+        if not analysis:
+            analysis.append("大きな変化は検出されませんでした")
+        
+        return analysis
+    
+    def visualize_changes(self, image1_path: str, image2_path: str, changes: Dict):
+        """変化を視覚化"""
+        fig, axes = plt.subplots(1, 2, figsize=(15, 7))
+        
+        # 画像を表示
+        img1 = cv2.imread(image1_path)
+        img2 = cv2.imread(image2_path)
+        
+        axes[0].imshow(cv2.cvtColor(img1, cv2.COLOR_BGR2RGB))
+        axes[0].set_title('変更前')
+        axes[0].axis('off')
+        
+        axes[1].imshow(cv2.cvtColor(img2, cv2.COLOR_BGR2RGB))
+        axes[1].set_title('変更後')
+        axes[1].axis('off')
+        
+        plt.tight_layout()
+        plt.show()
+        
+        # 変化の詳細をテキストで表示
+        print("=== 顔の変化分析結果 ===")
+        for analysis in changes['detailed_analysis']:
+            print(f"• {analysis}")
+
+# 使用例
+def main():
+    analyzer = FaceDetailAnalyzer()
+    
+    # 2枚の画像を比較
+    image1_path = "face1.jpg"  # 最初の画像のパス
+    image2_path = "face2.jpg"  # 比較する画像のパス
+    
+    try:
+        changes = analyzer.analyze_face_changes(image1_path, image2_path)
+        
+        if "error" not in changes:
+            # 結果を表示
+            analyzer.visualize_changes(image1_path, image2_path, changes)
+            
+            # 詳細データも必要な場合
+            print("\n=== 詳細な数値データ ===")
+            for region, data in changes.items():
+                if region != 'detailed_analysis':
+                    print(f"\n{region}:")
+                    print(f"  幅の変化: {data['width_change_percent']}%")
+                    print(f"  高さの変化: {data['height_change_percent']}%")
+                    print(f"  面積の変化: {data['area_change_percent']}%")
+        else:
+            print(changes["error"])
+            
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
+
+if __name__ == "__main__":
+    main()
