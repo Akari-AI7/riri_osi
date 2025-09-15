@@ -59,6 +59,73 @@ LANDMARK_POINTS = {
     }
 }
 
+class FaceFeatureAnalyzer:
+    """顔特徴分析クラス"""
+    def __init__(self):
+        pass
+
+    def generate_feature_descriptions(self, changes):
+        """特徴変化の自然言語記述生成（輪郭・むくみ・対称性にも対応）"""
+        descriptions = []
+
+        for feature, data in changes.items():
+            if isinstance(data, dict) and "change_percent" in data:
+                change_percent = data["change_percent"]
+                abs_percent = abs(change_percent)
+
+                # 変化量に応じた表現
+                if abs_percent < 5:
+                    magnitude = "わずかに"
+                elif abs_percent < 10:
+                    magnitude = "やや"
+                else:
+                    magnitude = "顕著に"
+
+                # 各特徴ごとの表現ルール
+                if feature == "左目の幅":
+                    direction = "大きくなっています" if change_percent > 0 else "小さくなっています"
+                elif feature == "左目の高さ":
+                    direction = "高くなっています" if change_percent > 0 else "低くなっています"
+                elif feature == "右目の幅":
+                    direction = "大きくなっています" if change_percent > 0 else "小さくなっています"
+                elif feature == "右目の高さ":
+                    direction = "高くなっています" if change_percent > 0 else "低くなっています"
+                elif feature == "両目間の距離":
+                    direction = "広がっています" if change_percent > 0 else "狭まっています"
+                elif feature == "鼻の幅":
+                    direction = "長くなっています" if change_percent > 0 else "短くなっています"
+                elif feature == "口の幅":
+                    direction = "横に広がっています" if change_percent > 0 else "横幅が狭まっています"
+                elif feature == "輪郭":
+                    direction = "シャープになっています" if change_percent < 0 else "丸みを帯びています"
+                elif feature == "顔の幅":
+                    direction = "大きくなっています" if change_percent > 0 else "小さくなっています"
+                else:
+                    direction = "変化があります"
+
+                description = f"{feature}が{magnitude}{direction}"
+
+                # 大きめの変化は数値を表示
+                if abs_percent > 10:
+                    description += f"（{change_percent:+.1f}%）"
+
+                descriptions.append(description)
+
+        if not descriptions:
+            descriptions.append("顔の特徴に顕著な変化は見られませんでした。")
+
+        # 総合的な洞察を追加
+        self.add_insights(descriptions, changes)
+        return descriptions
+
+    def add_insights(self, descriptions, changes):
+        """変化の洞察を追加"""
+        if "輪郭" in changes and "顔の幅" in changes:
+            if changes["顔の幅"]["change_percent"] > 0 and changes["輪郭"]["change_percent"] > 0:
+                descriptions.append("全体的に顔がふっくらしており、むくみが目立ちます。")
+            elif changes["顔の幅"]["change_percent"] < 0 and changes["輪郭"]["change_percent"] < 0:
+                descriptions.append("顔全体がすっきりしてシャープになっています。")
+
 # フォント設定関数
 def setup_japanese_font():
     """日本語フォントを設定"""
@@ -168,37 +235,49 @@ def calculate_differences(lm_past, lm_current):
     # 左目の幅
     left_eye_width_past = np.linalg.norm(lm_past[key_points['left_eye_left']] - lm_past[key_points['left_eye_right']])
     left_eye_width_current = np.linalg.norm(lm_current[key_points['left_eye_left']] - lm_current[key_points['left_eye_right']])
-    diffs['左目の幅'] = left_eye_width_current - left_eye_width_past
-
+    pixel_change = left_eye_width_current - left_eye_width_past
+    change_percent = (pixel_change / left_eye_width_past) * 100 if left_eye_width_past != 0 else 0
+    diffs['左目の幅'] =  {"pixel_change": pixel_change,"change_percent": change_percent}
     # 右目の幅
     right_eye_width_past = np.linalg.norm(lm_past[key_points['right_eye_left']] - lm_past[key_points['right_eye_right']])
     right_eye_width_current = np.linalg.norm(lm_current[key_points['right_eye_left']] - lm_current[key_points['right_eye_right']])
-    diffs['右目の幅'] = right_eye_width_current - right_eye_width_past
+    pixel_change = right_eye_width_current - right_eye_width_past
+    change_percent = (pixel_change / right_eye_width_past) * 100 if right_eye_width_past != 0 else 0
+    diffs['右目の幅'] =  {"pixel_change": pixel_change,"change_percent": change_percent}
 
     # 両目間の距離
     eye_distance_past = np.linalg.norm(lm_past[key_points['left_eye_right']] - lm_past[key_points['right_eye_left']])
     eye_distance_current = np.linalg.norm(lm_current[key_points['left_eye_right']] - lm_current[key_points['right_eye_left']])
-    diffs['両目間の距離'] = eye_distance_current - eye_distance_past
-
+    pixel_change = eye_distance_current - eye_distance_past
+    change_percent = (pixel_change / eye_distance_past) * 100 if eye_distance_past != 0 else 0
+    diffs['両目間の距離'] =  {"pixel_change": pixel_change,"change_percent": change_percent}
     # 鼻の幅
     nose_width_past = np.linalg.norm(lm_past[key_points['nose_left']] - lm_past[key_points['nose_right']])
     nose_width_current = np.linalg.norm(lm_current[key_points['nose_left']] - lm_current[key_points['nose_right']])
-    diffs['鼻の幅'] = nose_width_current - nose_width_past
+    pixel_change = nose_width_current - nose_width_past 
+    change_percent = (pixel_change / nose_width_past ) * 100 if nose_width_past != 0 else 0
+    diffs['鼻の幅'] = {"pixel_change": pixel_change,"change_percent": change_percent}
 
     # 口の幅
     mouth_width_past = np.linalg.norm(lm_past[key_points['mouth_left']] - lm_past[key_points['mouth_right']])
     mouth_width_current = np.linalg.norm(lm_current[key_points['mouth_left']] - lm_current[key_points['mouth_right']])
-    diffs['口の幅'] = mouth_width_current - mouth_width_past
+    pixel_change = mouth_width_current - mouth_width_past
+    change_percent = (pixel_change / mouth_width_past) * 100 if mouth_width_past != 0 else 0
+    diffs['口の幅'] =  {"pixel_change": pixel_change,"change_percent": change_percent}
 
     # 顔の幅
     face_width_past = np.linalg.norm(lm_past[key_points['face_left']] - lm_past[key_points['face_right']])
     face_width_current = np.linalg.norm(lm_current[key_points['face_left']] - lm_current[key_points['face_right']])
-    diffs['顔の幅'] = face_width_current - face_width_past
+    pixel_change = face_width_current - face_width_past
+    change_percent = (pixel_change / face_width_past) * 100 if face_width_past != 0 else 0
+    diffs['顔の幅'] =  {"pixel_change": pixel_change,"change_percent": change_percent}
 
     # 顔の高さ（額から顎まで）
     face_height_past = np.linalg.norm(lm_past[key_points['forehead']] - lm_past[key_points['chin']])
     face_height_current = np.linalg.norm(lm_current[key_points['forehead']] - lm_current[key_points['chin']])
-    diffs['顔の高さ'] = face_height_current - face_height_past
+    pixel_change = face_height_current - face_height_past
+    change_percent = (pixel_change / face_height_past) * 100 if face_height_past != 0 else 0
+    diffs['顔の高さ'] =  {"pixel_change": pixel_change,"change_percent": change_percent}
 
     # 左目の高さ（上下の幅）
     left_eye_top = lm_past[159]  # 左目上部
@@ -208,7 +287,10 @@ def calculate_differences(lm_past, lm_current):
     left_eye_top = lm_current[159]
     left_eye_bottom = lm_current[145]
     left_eye_height_current = np.linalg.norm(left_eye_top - left_eye_bottom)
-    diffs['左目の高さ'] = left_eye_height_current - left_eye_height_past
+    pixel_change = left_eye_height_current - left_eye_height_past
+    change_percent = (pixel_change / left_eye_height_past) * 100 if left_eye_height_past != 0 else 0
+    diffs['左目の高さ'] = {"pixel_change": pixel_change,"change_percent": change_percent}
+
 
     # 右目の高さ
     right_eye_top = lm_past[386]  # 右目上部
@@ -218,12 +300,14 @@ def calculate_differences(lm_past, lm_current):
     right_eye_top = lm_current[386]
     right_eye_bottom = lm_current[374]
     right_eye_height_current = np.linalg.norm(right_eye_top - right_eye_bottom)
-    diffs['右目の高さ'] = right_eye_height_current - right_eye_height_past
+    pixel_change = right_eye_height_current - right_eye_height_past
+    change_percent = (pixel_change / right_eye_height_past) * 100 if right_eye_height_past != 0 else 0
+    diffs['右目の高さ'] = {"pixel_change": pixel_change,"change_percent": change_percent}
 
     return diffs
     
 # ================== 撮影処理 ==================
-def capture_image(frame, landmarks,font):
+def capture_image(frame, landmarks):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     raw_path = os.path.join(SAVE_DIR, f"{timestamp}_raw.jpg")
     lm_path = os.path.join(SAVE_DIR, f"{timestamp}_landmarks.jpg")
@@ -252,20 +336,36 @@ def compare_images(frame, face_mesh):
 
     if past_lm is not None and current_lm is not None:
         diffs = calculate_differences(past_lm, current_lm)
-        print("\n" + "="*50)
-        print("\n=== 顔比較結果 ===")
-        print("="*50)
-        for part, val in diffs.items():
-            status = "拡大" if val > 0 else "縮小"
-            print(f"{part:12s}: {val:+6.2f} px ({status})")
-        print("="*50)
+
+        print("\n" + "="*60)
+        print("=== 顔分析結果（数値データ） ===")
+        print("="*60)
+        for part, data in diffs.items():
+            pixel_change = data['pixel_change']
+            change_percent = data['change_percent']
+            status = "拡大" if pixel_change > 0 else "縮小"
+            print(f"{part:12s}: {pixel_change:+6.2f} px ({change_percent:+5.1f}%) [{status}]")
+        print("="*60)
         
-        # 総合評価
-        significant_changes = [k for k, v in diffs.items() if abs(v) > 2.0]
+        # 有意な変化の検出
+        significant_changes = [k for k, v in diffs.items() if abs(v['change_percent']) > 5.0]
         if significant_changes:
             print(f"有意な変化: {', '.join(significant_changes)}")
         else:
             print("大きな変化は検出されませんでした")
+
+        print("\n" + "="*60)
+        print("=== AI分析結果（自然言語） ===")
+        print("="*60)
+        
+        # AI分析による自然言語記述
+        analyzer = FaceFeatureAnalyzer()
+        descriptions = analyzer.generate_feature_descriptions(diffs)
+        for i, desc in enumerate(descriptions, 1):
+            print(f"{i:2d}. {desc}")
+            
+        print("="*60)
+        
     else:
         print("[WARN] 顔が検出できませんでした")
 
@@ -278,15 +378,18 @@ def main():
     # 日本語フォント設定
     font = setup_japanese_font()
     print("[情報] 日本語フォントを設定しました")
+
+    # AI分析器の初期化
+    analyzer = FaceFeatureAnalyzer()
+    print("[情報] AI分析器を初期化しました")
     
     if not cap.isOpened():
         print("[ERROR] カメラを開けませんでした")
         return
     
     
-    print("[INFO] 's' = 撮影 / 'c' = 比較  / 'd' = 詳細表示  / 'q' = 終了")
+    print("[INFO] 's' = 撮影 / 'c' = 比較  / 'q' = 終了")
 
-    show_detailed = False
 
     # ★ FaceMeshを最初に1回だけ作る（高速 & 警告抑制）
     with mp_face_mesh.FaceMesh(
@@ -322,9 +425,8 @@ def main():
            cv2.ellipse(frame_disp,  center, axes,0, 0, 360, (0, 200, 200), 2)
            
            # 操作ガイド表示
-           guide_text = "詳細表示: ON" if show_detailed else "詳細表示: OFF"
-           frame_disp = draw_japanese_text(frame_disp, guide_text, (10, 30), font, (255, 255, 255))
-           frame_disp = draw_japanese_text(frame_disp, "s:撮影 c:比較 d:詳細切替 q:終了", (10, h-20), font, (255, 255, 255))
+           frame_disp = draw_japanese_text(frame_disp, "統合顔分析システム", (10, 30), font, (255, 255, 255))
+           frame_disp = draw_japanese_text(frame_disp, "s:撮影 c:比較  q:終了", (10, h-20), font, (255, 255, 255))
 
            cv2.imshow("Camera Preview", frame_disp)
            key = cv2.waitKey(1) & 0xFF
@@ -335,9 +437,6 @@ def main():
                capture_image(frame, landmarks)
            elif key == ord('c'):
                compare_images(frame, face_mesh)
-           elif key == ord('d'):
-                show_detailed = not show_detailed
-                print(f"[INFO] 詳細表示: {'ON' if show_detailed else 'OFF'}")
            elif key == ord('q'):
                break
 

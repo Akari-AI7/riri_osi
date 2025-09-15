@@ -1,0 +1,11 @@
+# 仮想環境
+face/
+
+# キャッシュ
+__pycache__/
+
+# VSCode設定
+.vscode/
+
+# 実行結果のキャプチャ画像
+captures/
