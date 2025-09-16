@@ -287,18 +287,57 @@ class FaceAnalysisApp {
         const scaleX = cw / vw;
         const scaleY = ch / vh;
 
-        ctx.strokeStyle = '#00ffff';
-        ctx.fillStyle = '#00ffff';
-        ctx.lineWidth = 1.5;
-
         const points = results.multiFaceLandmarks[0];
-        for (let i = 0; i < points.length; i++) {
-            const x = points[i].x * vw * scaleX;
-            const y = points[i].y * vh * scaleY;
+
+        const drawPoints = (indices, color) => {
+            ctx.fillStyle = color;
+            for (let i = 0; i < indices.length; i++) {
+                const p = points[indices[i]];
+                if (!p) continue;
+                const x = p.x * vw * scaleX;
+                const y = p.y * vh * scaleY;
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        };
+
+        // インデックス定義（サーバ側と概ね合わせる）
+        const LEFT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+        const RIGHT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
+        const NOSE = [1, 2, 5, 4, 6, 19, 94, 125, 141, 235, 31, 228, 229, 230, 231, 232, 233, 244, 245, 122];
+        const OUTER_LIPS = [61, 84, 17, 314, 405, 320, 307, 375, 321, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318];
+        const FACE_OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+
+        drawPoints(LEFT_EYE, '#00ff00');    // 左目: 緑
+        drawPoints(RIGHT_EYE, '#0080ff');   // 右目: 青
+        drawPoints(NOSE, '#ff3333');        // 鼻: 赤
+        drawPoints(OUTER_LIPS, '#ff33ff');  // 口: 紫
+        drawPoints(FACE_OVAL, '#ffd400');   // 顔輪郭: 黄
+
+        // 主要キーポイントにラベル
+        const labelPoint = (idx, label, color) => {
+            const p = points[idx];
+            if (!p) return;
+            const x = p.x * vw * scaleX;
+            const y = p.y * vh * scaleY;
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
             ctx.fill();
-        }
+            ctx.fillStyle = '#222';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(label, x + 4, y - 4);
+        };
+        labelPoint(33, 'L-eye L', '#00ff00');
+        labelPoint(133, 'L-eye R', '#00ff00');
+        labelPoint(362, 'R-eye L', '#0080ff');
+        labelPoint(263, 'R-eye R', '#0080ff');
+        labelPoint(1, 'Nose tip', '#ff3333');
+        labelPoint(61, 'Mouth L', '#ff33ff');
+        labelPoint(291, 'Mouth R', '#ff33ff');
+        labelPoint(234, 'Face L', '#ffd400');
+        labelPoint(454, 'Face R', '#ffd400');
     }
 
     showLoading() {
