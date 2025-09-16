@@ -178,6 +178,11 @@ def health():
 def serve_captures(filename):
     return send_from_directory(SAVE_DIR, filename, as_attachment=False)
 
+# ブラウザの自動リクエストに対する簡易favicon応答（404抑止）
+@app.route('/favicon.ico')
+def favicon():
+    return ("", 204)
+
 # ========== アップロード型フロー API ==========
 def _read_uploaded_image_to_cv2(upload_file):
     import io

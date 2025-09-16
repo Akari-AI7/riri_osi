@@ -234,8 +234,12 @@ class FaceAnalysisApp {
 
     async initFaceMesh() {
         // MediaPipe FaceMesh (browser) セットアップ
-        if (!window.FaceMesh) return;
-        this.faceMesh = new FaceMesh.FaceMesh({
+        const FaceMeshNS = window.FaceMesh || window.faceMesh;
+        if (!FaceMeshNS) {
+            console.warn('FaceMesh namespace not found. Check CDN script loading.');
+            return;
+        }
+        this.faceMesh = new FaceMeshNS.FaceMesh({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
         });
         this.faceMesh.setOptions({
@@ -252,10 +256,16 @@ class FaceAnalysisApp {
         const canvas = document.getElementById('landmarksCanvas');
         const update = () => {
             const rect = video.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
+            if (rect.width && rect.height) {
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
         };
-        update();
+        if (video.readyState >= 1) {
+            update();
+        } else {
+            video.addEventListener('loadedmetadata', update, { once: true });
+        }
         window.addEventListener('resize', update);
     }
 
