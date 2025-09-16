@@ -4,174 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>分析結果 - Face Compare App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }
-        .content_title {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-        .content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #a7cffa;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-        button:hover {
-            background-color: #85b8f7;
-        }
-        .back-button {
-            background-color: #6c757d;
-        }
-        .back-button:hover {
-            background-color: #5a6268;
-        }
-        .section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .section h3 {
-            margin-top: 0;
-            color: #333;
-        }
-        .significant-changes {
-            background-color: #fff3cd;
-            border-color: #ffeaa7;
-        }
-        .ai-analysis {
-            background-color: #e7f3ff;
-            border-color: #b3d9ff;
-        }
-        .numerical-data {
-            background-color: #f0f8f0;
-            border-color: #c3e6cb;
-        }
-        .no-data {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-        ul {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        li {
-            margin: 5px 0;
-        }
-        .timestamp {
-            color: #666;
-            font-size: 14px;
-            font-style: italic;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        pre {
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-            font-size: 12px;
-        }
-        
-        /* 視覚的分析用のスタイル */
-        .visual-analysis {
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-start;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-        
-        .face-diagram {
-            text-align: center;
-            margin: 10px;
-            overflow: visible;
-        }
-        
-        .face-diagram h4 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .change-indicator {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 5px;
-        }
-        
-        .change-increase {
-            background-color: #ffebee;
-            color: #c62828;
-        }
-        
-        .change-decrease {
-            background-color: #e8f5e8;
-            color: #2e7d32;
-        }
-        
-        .change-stable {
-            background-color: #f5f5f5;
-            color: #616161;
-        }
-        
-        .feature-legend {
-            margin-top: 15px;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .feature-legend div {
-            margin: 2px 0;
-            display: flex;
-            align-items: center;
-        }
-        
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            margin-right: 8px;
-        }
-        
-        @media (max-width: 768px) {
-            .visual-analysis {
-                flex-direction: column;
-                align-items: center;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="static/css/results.css">
 </head>
+
 <body>
     <h1 class="content_title">分析結果</h1>
     <div class="content">
@@ -297,26 +132,37 @@
             
             // 有意な変化
             try {
-                if (comparisonResult.significant_changes && Array.isArray(comparisonResult.significant_changes) && comparisonResult.significant_changes.length > 0) {
-                    html += '<div class="significant-changes">';
-                    html += '<h4>🚨 有意な変化が検出されました</h4>';
-                    html += '<ul>';
-                    comparisonResult.significant_changes.forEach(change => {
-                        html += `<li><strong>${change}</strong></li>`;
-                    });
-                    html += '</ul></div>';
-                } else {
-                    html += '<div class="section"><h4>😊 大きな変化は検出されませんでした</h4><p>顔の特徴に顕著な変化は見られませんでした。</p></div>';
+                if (comparisonResult.significant_changes 
+                && Array.isArray(comparisonResult.significant_changes) 
+                && comparisonResult.significant_changes.length > 0) {
+        
+                html += `
+                <div class="face-container">
+                    <img src="/static/face_outline.png" class="face-outline" alt="face">
+                `;
+
+                // 部位ごとにコールアウトを追加
+                comparisonResult.significant_changes.forEach(change => {
+                    html += `
+                      <div class="callout callout-${change.part}">
+                        <span class="line"></span>
+                        <div class="comment">${change.comment}</div>
+                      </div>
+                    `;
+                });
+
+                html += `</div>`; // face-container の閉じタグ
+
+            } else {
+                html += `
+                   <div class="section">
+                      <h4>😊 大きな変化は検出されませんでした</h4>
+                       <p>顔の特徴に顕著な変化は見られませんでした。</p>
+                   </div>`;
                 }
-            } catch (error) {
-                console.error('有意な変化表示エラー:', error);
-                html += '<div class="section"><h4>⚠️ 有意な変化の表示でエラーが発生しました</h4></div>';
-            }
             
-            // 視覚的分析セクション
-            html += '<div class="ai-analysis">';
-            html += '<h4>👤 視覚的分析結果</h4>';
-            html += '<div class="visual-analysis">';
+
+            
            
             
             // 数値データ - 最も安全な方法で表示
