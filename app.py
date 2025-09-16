@@ -1,19 +1,28 @@
 from flask import Flask, render_template, jsonify, Response
-import cv2
-import numpy as np
 import os
 from datetime import datetime
-import mediapipe as mp
 
-# 元のコードから必要な機能をインポート
-from face_compare_heatmap import (
-    extract_landmarks,
-    draw_landmarks, 
-    calculate_differences,
-    FaceFeatureAnalyzer,
-    LANDMARK_POINTS,
-    mp_face_mesh
-)
+# 重いライブラリは起動時例外を避けるため遅延インポート/ガード
+LIBS_OK = True
+_import_error_message = None
+try:
+    import cv2  # type: ignore
+    import numpy as np  # type: ignore
+    import mediapipe as mp  # type: ignore
+    from face_compare_heatmap import (  # type: ignore
+        extract_landmarks,
+        draw_landmarks, 
+        calculate_differences,
+        FaceFeatureAnalyzer,
+        LANDMARK_POINTS,
+        mp_face_mesh
+    )
+except Exception as _e:  # ImportError など
+    LIBS_OK = False
+    _import_error_message = str(_e)
+    cv2 = None  # type: ignore
+    np = None  # type: ignore
+    mp = None  # type: ignore
 
 app = Flask(__name__)
 
@@ -31,6 +40,8 @@ PAST_IMAGE_PATH = os.path.join(SAVE_DIR, "past.jpg")
 def start_camera():
     """カメラ開始"""
     global camera, face_mesh_instance
+    if not LIBS_OK:
+        return False
     try:
         camera = cv2.VideoCapture(0)
         face_mesh_instance = mp_face_mesh.FaceMesh(
@@ -56,6 +67,8 @@ def stop_camera():
 
 def init_face_mesh():
     global face_mesh_instance
+    if not LIBS_OK:
+        return
     mp_face_mesh = mp.solutions.face_mesh
     face_mesh_instance = mp_face_mesh.FaceMesh(
         static_image_mode=False,
@@ -68,6 +81,8 @@ def init_face_mesh():
 def capture_current_frame():
     """現在のフレームを撮影"""
     global capture_result
+    if not LIBS_OK:
+        return {"success": False, "message": f"依存ライブラリの読み込みに失敗しました: {_import_error_message}"}
     if camera is None:
         return {"success": False, "message": "カメラが開始されていません"}
     
@@ -106,6 +121,8 @@ def capture_current_frame():
 def compare_current_frame():
     """現在のフレームと過去の画像を比較"""
     global comparison_result
+    if not LIBS_OK:
+        return {"success": False, "message": f"依存ライブラリの読み込みに失敗しました: {_import_error_message}"}
     if camera is None:
         return {"success": False, "message": "カメラが開始されていません"}
     
@@ -149,6 +166,13 @@ def index():
     """メインページ"""
     return render_template('index.html')
 
+@app.route('/health')
+def health():
+    status = {"status": "ok", "libs_ok": LIBS_OK}
+    if not LIBS_OK:
+        status["error"] = _import_error_message
+    return jsonify(status)
+
 @app.route('/results')
 def results():
     """結果ページ"""
@@ -157,6 +181,8 @@ def results():
 @app.route('/start_camera', methods=['POST'])
 def start_camera_route():
     """カメラ開始API"""
+    if not LIBS_OK:
+        return jsonify({"success": False, "message": f"依存ライブラリの読み込みに失敗しました: {_import_error_message}"})
     success = start_camera()
     if success:
         return jsonify({"success": True, "message": "カメラが開始されました"})
@@ -193,6 +219,8 @@ def get_results():
 @app.route('/video_feed')
 def video_feed():
     """ビデオストリーミング"""
+    if not LIBS_OK:
+        return Response("", status=503)
     def generate():
         global camera, face_mesh_instance
         if camera is None:
