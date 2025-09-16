@@ -76,7 +76,6 @@ class FaceAnalysisApp {
         if (file) {
             this.baseImage = file;
             this.previewImage(file, 'baseImagePreview');
-            document.getElementById('setBaseBtn').style.display = 'inline-block';
         }
     }
 
@@ -85,7 +84,6 @@ class FaceAnalysisApp {
         if (file) {
             this.compareImage = file;
             this.previewImage(file, 'compareImagePreview');
-            document.getElementById('compareBtn').style.display = 'inline-block';
         }
     }
 
@@ -198,9 +196,6 @@ class FaceAnalysisApp {
             this.resizeCanvasToVideo();
             this.startProcessingLoop();
             
-            document.getElementById('startCameraBtn').style.display = 'none';
-            document.getElementById('captureBtn').style.display = 'inline-block';
-            document.getElementById('stopCameraBtn').style.display = 'inline-block';
         } catch (error) {
             this.showError('カメラへのアクセスが許可されていません');
         }
@@ -213,9 +208,6 @@ class FaceAnalysisApp {
             const ctx = document.getElementById('landmarksCanvas').getContext('2d');
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             
-            document.getElementById('startCameraBtn').style.display = 'inline-block';
-            document.getElementById('captureBtn').style.display = 'none';
-            document.getElementById('stopCameraBtn').style.display = 'none';
         }
     }
 
@@ -233,7 +225,6 @@ class FaceAnalysisApp {
         // 撮影した画像を比較画像として設定
         document.getElementById('compareImagePreview').innerHTML = 
             `<img src="${imageData}" class="image-preview" alt="撮影した画像">`;
-        document.getElementById('compareBtn').style.display = 'inline-block';
         
         // File オブジェクトを作成
         canvas.toBlob((blob) => {
