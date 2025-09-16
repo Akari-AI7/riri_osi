@@ -4,199 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Face Compare App</title>
+    <link rel="stylesheet" href="/static/css/index.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }
-        .content_title {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-        .content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #a7cffa;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-        button:hover {
-            background-color: #a7cffa;
-        }
-        #video-container {
-            margin: 20px 0;
-        }
-        #video-feed {
-            max-width: 640px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        #results {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .message {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .results-button {
-            background-color: #339fad;
-        }
-        .results-button:hover {
-            background-color: #216688;
-        }
-        .info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        .instructions {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        .instructions h3 {
-            margin-top: 0;
-            color: #495057;
-        }
-        .instructions ol {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        .instructions li {
-            margin: 5px 0;
-        }
-        
+        .hidden { display: none; }
+        .image-preview { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }
+        .upload-area { border: 2px dashed #ccc; padding: 16px; text-align: center; cursor: pointer; border-radius: 8px; }
+        .upload-area.dragover { border-color: #339fad; background: #f0fbfd; }
+        .actions { margin-top: 10px; }
     </style>
-</head>
+    </head>
 <body>
     <h1 class="content_title">〜 以前の自分と比較しよう 〜</h1>
     <div class="content">
-        
-        <div id="controls">
-            <button id="start-camera">カメラ開始</button>
-            <button id="stop-camera">カメラ停止</button>
-            <button id="capture">撮影</button>
-            <button id="compare">比較</button>
-            <button id="show-results"class="results-button">結果表示</button>
-        </div>
-        
-        <div id="messages"></div>
-        
-        <div id="video-container">
-            <h3>ライブ映像</h3>
-            <img id="video-feed" src="/video_feed" style="display: none;" alt="Video Feed">
-            <button id="start-button">カメラ起動</button>
+        <div id="successMessage" class="message success" style="display:none;"></div>
+        <div id="errorMessage" class="message error" style="display:none;"></div>
+
+        <div class="instructions">
+            <h3>使い方</h3>
+            <ol>
+                <li>基準画像をアップロード（またはカメラで撮影）</li>
+                <li>比較したい画像をアップロード（または撮影）</li>
+                <li>「比較する」を押して結果を表示</li>
+            </ol>
         </div>
 
-        <script>
-        document.getElementById('start-button').addEventListener('click', function() {
-            const videoFeed = document.getElementById('video-feed');
-            // 表示させる
-            videoFeed.style.display = 'block';
-            // ボタンを非表示にする（任意）
-            this.style.display = 'none';
-        });
-        </script>
-        
+        <!-- 基準画像アップロード -->
+        <section>
+            <h3>基準画像</h3>
+            <div id="baseUploadArea" class="upload-area">ここにドラッグ＆ドロップ、またはクリックして選択</div>
+            <input type="file" id="baseImageInput" accept="image/*" style="display:none;" />
+            <div class="actions">
+                <button id="setBaseBtn" style="display:none;">基準画像に設定</button>
+            </div>
+            <div id="baseImagePreview"></div>
+        </section>
+
+        <!-- 比較画像アップロード -->
+        <section>
+            <h3>比較画像</h3>
+            <div id="compareUploadArea" class="upload-area">ここにドラッグ＆ドロップ、またはクリックして選択</div>
+            <input type="file" id="compareImageInput" accept="image/*" style="display:none;" />
+            <div class="actions">
+                <button id="compareBtn" style="display:none;">比較する</button>
+            </div>
+            <div id="compareImagePreview"></div>
+        </section>
+
+        <!-- ブラウザカメラ -->
+        <section>
+            <h3>ブラウザカメラ</h3>
+            <video id="video" autoplay playsinline style="display:none; width:100%; max-width:640px; border:1px solid #ccc; border-radius:4px;"></video>
+            <canvas id="canvas" class="hidden"></canvas>
+            <div class="actions">
+                <button id="startCameraBtn">カメラを起動</button>
+                <button id="captureBtn" style="display:none;">撮影して比較画像に使用</button>
+                <button id="stopCameraBtn" style="display:none;">カメラ停止</button>
+            </div>
+        </section>
+
+        <!-- 結果エリア -->
+        <div id="loading" class="loading" style="display:none;">処理中...</div>
+        <div id="results" class="results hidden">
+            <h3>分析結果</h3>
+            <div id="analysisGrid" class="analysis-grid"></div>
+            <div id="descriptions" class="descriptions"></div>
+        </div>
     </div>
 
-    <script>
-        // メッセージ表示
-        function showMessage(message, type = 'info') {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}`;
-            messageDiv.textContent = message;
-            messagesDiv.appendChild(messageDiv);
-            
-            // 5秒後にメッセージを削除
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 5000);
-        }
-
-        // APIリクエスト共通処理
-        async function apiRequest(url, method = 'POST') {
-            try {
-                const response = await fetch(url, { method: method });
-                const data = await response.json();
-                
-                if (data.success) {
-                    showMessage(data.message, 'success');
-                } else {
-                    showMessage(data.message, 'error');
-                }
-                
-                return data;
-            } catch (error) {
-                showMessage('通信エラーが発生しました: ' + error.message, 'error');
-                return null;
-            }
-        }
-
-        // カメラ開始
-        document.getElementById('start-camera').addEventListener('click', async () => {
-            const result = await apiRequest('/start_camera');
-            if (result && result.success) {
-                document.getElementById('video-feed').style.display = 'block';
-            }
-        });
-
-        // カメラ停止
-        document.getElementById('stop-camera').addEventListener('click', async () => {
-            const result = await apiRequest('/stop_camera');
-            if (result && result.success) {
-                document.getElementById('video-feed').style.display = 'none';
-            }
-        });
-
-        // 撮影
-        document.getElementById('capture').addEventListener('click', async () => {
-            await apiRequest('/capture');
-        });
-
-        // 比較
-        document.getElementById('compare').addEventListener('click', async () => {
-            await apiRequest('/compare');
-        });
-
-        // 結果表示（別画面に遷移）
-        document.getElementById('show-results').addEventListener('click', () => {
-            window.open('/results', '_blank');
-        });
-
-        // ページ読み込み時の初期化
-        document.addEventListener('DOMContentLoaded', () => {
-            showMessage('ページが読み込まれました。まずカメラを開始してください。');
-        });
-    </script>
+    <script src="/static/script.js"></script>
 </body>
 </html>

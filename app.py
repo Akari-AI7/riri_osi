@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, Response
+from flask import Flask, render_template, jsonify, Response, request, send_from_directory
 import os
 from datetime import datetime
 
@@ -172,6 +172,97 @@ def health():
     if not LIBS_OK:
         status["error"] = _import_error_message
     return jsonify(status)
+
+# 静的に保存した撮影ファイル配信用
+@app.route('/captures/<path:filename>')
+def serve_captures(filename):
+    return send_from_directory(SAVE_DIR, filename, as_attachment=False)
+
+# ========== アップロード型フロー API ==========
+def _read_uploaded_image_to_cv2(upload_file):
+    import io
+    import numpy as np  # type: ignore
+    file_bytes = np.frombuffer(upload_file.read(), dtype=np.uint8)
+    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)  # type: ignore
+    return img
+
+@app.route('/upload_base', methods=['POST'])
+def upload_base():
+    if not LIBS_OK:
+        return jsonify({"success": False, "error": f"依存ライブラリの読み込みに失敗しました: {_import_error_message}"}), 500
+    if 'image' not in request.files:
+        return jsonify({"success": False, "error": "画像ファイルがありません"}), 400
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"success": False, "error": "ファイル名が不正です"}), 400
+
+    img = _read_uploaded_image_to_cv2(file)
+    if img is None:
+        return jsonify({"success": False, "error": "画像の読み込みに失敗しました"}), 400
+
+    # ランドマーク抽出
+    global face_mesh_instance
+    if face_mesh_instance is None:
+        init_face_mesh()
+    lms = extract_landmarks(img, face_mesh_instance)
+    if lms is None:
+        return jsonify({"success": False, "error": "顔が検出されませんでした"}), 200
+
+    # 保存
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    raw_name = f"{timestamp}_base_raw.jpg"
+    lm_name = f"{timestamp}_base_landmarks.jpg"
+    raw_path = os.path.join(SAVE_DIR, raw_name)
+    lm_path = os.path.join(SAVE_DIR, lm_name)
+
+    cv2.imwrite(raw_path, img)  # type: ignore
+    lm_img = draw_landmarks(img.copy(), lms)
+    cv2.imwrite(lm_path, lm_img)  # type: ignore
+
+    # 過去画像として確定
+    cv2.imwrite(PAST_IMAGE_PATH, img)  # type: ignore
+
+    return jsonify({
+        "success": True,
+        "message": "基準画像を設定しました",
+        "landmark_image": f"/captures/{lm_name}"
+    })
+
+@app.route('/compare', methods=['POST'])
+def compare_uploaded():
+    if not LIBS_OK:
+        return jsonify({"success": False, "error": f"依存ライブラリの読み込みに失敗しました: {_import_error_message}"}), 500
+    if not os.path.exists(PAST_IMAGE_PATH):
+        return jsonify({"success": False, "error": "先に基準画像をアップロードしてください"}), 200
+    if 'image' not in request.files:
+        return jsonify({"success": False, "error": "画像ファイルがありません"}), 400
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"success": False, "error": "ファイル名が不正です"}), 400
+
+    current_img = _read_uploaded_image_to_cv2(file)
+    if current_img is None:
+        return jsonify({"success": False, "error": "画像の読み込みに失敗しました"}), 400
+
+    # ランドマーク
+    global face_mesh_instance
+    if face_mesh_instance is None:
+        init_face_mesh()
+    past_img = cv2.imread(PAST_IMAGE_PATH)  # type: ignore
+    past_lm = extract_landmarks(past_img, face_mesh_instance)
+    current_lm = extract_landmarks(current_img, face_mesh_instance)
+    if past_lm is None or current_lm is None:
+        return jsonify({"success": False, "error": "顔が検出されませんでした"}), 200
+
+    diffs = calculate_differences(past_lm, current_lm)
+    analyzer = FaceFeatureAnalyzer()
+    descriptions = analyzer.generate_feature_descriptions(diffs)
+
+    return jsonify({
+        "success": True,
+        "differences": diffs,
+        "descriptions": descriptions
+    })
 
 @app.route('/results')
 def results():
