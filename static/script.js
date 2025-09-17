@@ -235,23 +235,32 @@ class FaceAnalysisApp {
 
     async initFaceMesh() {
         // MediaPipe FaceMesh (browser) セットアップ
+        console.log('Checking FaceMesh namespace...');
         const FaceMeshNS = window.FaceMesh || window.faceMesh;
+        console.log('FaceMeshNS:', FaceMeshNS);
         if (!FaceMeshNS) {
             console.warn('FaceMesh namespace not found. Check CDN script loading.');
             return;
         }
         console.log('Initializing FaceMesh...');
-        this.faceMesh = new FaceMeshNS.FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-        });
-        this.faceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        this.faceMesh.onResults(this.onResultsBound);
-        console.log('FaceMesh initialized');
+        try {
+            console.log('Creating FaceMesh instance...');
+            this.faceMesh = new FaceMeshNS.FaceMesh({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+            });
+            console.log('Setting FaceMesh options...');
+            this.faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            console.log('Setting FaceMesh onResults callback...');
+            this.faceMesh.onResults(this.onResultsBound);
+            console.log('FaceMesh initialized');
+        } catch (error) {
+            console.error('FaceMesh initialization failed:', error);
+        }
     }
 
     resizeCanvasToVideo() {
