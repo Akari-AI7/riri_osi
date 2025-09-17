@@ -191,6 +191,7 @@ class FaceAnalysisApp {
             this.stream = await navigator.mediaDevices.getUserMedia({ video: true });
             const video = document.getElementById('video');
             video.srcObject = this.stream;
+            await video.play();
             video.style.display = 'block';
             await this.initFaceMesh();
             this.resizeCanvasToVideo();
@@ -239,6 +240,7 @@ class FaceAnalysisApp {
             console.warn('FaceMesh namespace not found. Check CDN script loading.');
             return;
         }
+        console.log('Initializing FaceMesh...');
         this.faceMesh = new FaceMeshNS.FaceMesh({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
         });
@@ -249,6 +251,7 @@ class FaceAnalysisApp {
             minTrackingConfidence: 0.5
         });
         this.faceMesh.onResults(this.onResultsBound);
+        console.log('FaceMesh initialized');
     }
 
     resizeCanvasToVideo() {
@@ -271,6 +274,7 @@ class FaceAnalysisApp {
 
     async startProcessingLoop() {
         if (!this.faceMesh) return;
+        console.log('Starting processing loop...');
         const video = document.getElementById('video');
         const onFrame = async () => {
             if (video.readyState >= 2 && this.stream) {
@@ -282,11 +286,13 @@ class FaceAnalysisApp {
     }
 
     onResults(results) {
+        console.log('FaceMesh results:', results);
         const canvas = document.getElementById('landmarksCanvas');
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+        console.log('Drawing landmarks...');
 
         const video = document.getElementById('video');
         const vw = video.videoWidth;
