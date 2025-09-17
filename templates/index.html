@@ -4,89 +4,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Face Compare App</title>
-    <link rel="stylesheet" href="/static/css/index.css">
-    <style>
-        .hidden { display: none; }
-        .image-preview { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }
-        .upload-area { border: 2px dashed #ccc; padding: 16px; text-align: center; cursor: pointer; border-radius: 8px; }
-        .upload-area.dragover { border-color: #339fad; background: #f0fbfd; }
-        .actions { margin-top: 10px; }
-        .video-wrap { position: relative; width: 100%; max-width: 640px; }
-        #video { display:none; }
-        #landmarksCanvas { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; border:1px solid #ccc; border-radius:4px; }
-    </style>
-    </head>
+    <link rel="stylesheet" href="static/css/index.css">
+</head>
+
 <body>
     <h1 class="content_title">〜 以前の自分と比較しよう 〜</h1>
     <div class="content">
-        <div id="successMessage" class="message success" style="display:none;"></div>
-        <div id="errorMessage" class="message error" style="display:none;"></div>
-
-        <div class="instructions">
-            <h3>使い方</h3>
-            <ol>
-                <li>基準画像をアップロード（またはカメラで撮影）</li>
-                <li>比較したい画像をアップロード（または撮影）</li>
-                <li>「比較する」を押して結果を表示</li>
-            </ol>
-        </div>
-
-        <!-- 基準画像アップロード -->
-        <section>
-            <h3>基準画像</h3>
-            <div id="baseUploadArea" class="upload-area">ここにドラッグ＆ドロップ、またはクリックして選択</div>
-            <input type="file" id="baseImageInput" accept="image/*" style="display:none;" />
-            <div class="actions">
-                <button id="setBaseBtn">基準画像に設定</button>
-            </div>
-            <div id="baseImagePreview"></div>
-        </section>
-
-        <!-- 比較画像アップロード -->
-        <section>
-            <h3>比較画像</h3>
-            <div id="compareUploadArea" class="upload-area">ここにドラッグ＆ドロップ、またはクリックして選択</div>
-            <input type="file" id="compareImageInput" accept="image/*" style="display:none;" />
-            <div class="actions">
-                <button id="compareBtn">比較する</button>
-            </div>
-            <div id="compareImagePreview"></div>
-        </section>
-
-        <!-- ブラウザカメラ -->
-        <section>
-            <h3>ブラウザカメラ</h3>
-            <div class="video-wrap">
-                <video id="video" autoplay playsinline style="width:100%; max-width:640px; border:1px solid #ccc; border-radius:4px;"></video>
-                <canvas id="landmarksCanvas"></canvas>
-            </div>
-            <div style="margin-top:8px; font-size:14px; color:#555;">
-                <span style="display:inline-block; width:12px; height:12px; background:#00ff00; margin-right:6px; vertical-align:middle;"></span>左目
-                <span style="display:inline-block; width:12px; height:12px; background:#0080ff; margin:0 6px 0 16px; vertical-align:middle;"></span>右目
-                <span style="display:inline-block; width:12px; height:12px; background:#ff3333; margin:0 6px 0 16px; vertical-align:middle;"></span>鼻
-                <span style="display:inline-block; width:12px; height:12px; background:#ff33ff; margin:0 6px 0 16px; vertical-align:middle;"></span>口
-                <span style="display:inline-block; width:12px; height:12px; background:#ffd400; margin:0 6px 0 16px; vertical-align:middle;"></span>顔輪郭
-            </div>
-            <canvas id="canvas" class="hidden"></canvas>
-            <div class="actions">
-                <button id="startCameraBtn">カメラを起動</button>
-                <button id="captureBtn">撮影して比較画像に使用</button>
-                <button id="stopCameraBtn">カメラ停止</button>
-            </div>
-        </section>
-
-        <!-- ローディング表示 -->
-        <div id="loading" class="loading" style="display:none;">処理中...</div>
         
-        <!-- 結果表示ボタン -->
-        <div style="margin-top: 20px; text-align: center;">
-            <button id="show-results" class="results-button" style="background-color: #339fad; color: white; padding: 12px 24px; font-size: 16px; border: none; border-radius: 4px; cursor: pointer;">
-                結果表示
-            </button>
+        <div id="controls">
+            <button id="start-camera">カメラ開始</button>
+            <button id="stop-camera">カメラ停止</button>
+            <button id="capture">撮影</button>
+            <button id="compare">比較</button>
+            <button id="show-results"class="results-button">結果表示</button>
         </div>
+        
+        <div id="messages"></div>
+        
+        <div id="video-container">
+            <h3>ライブ映像</h3>
+            <img id="video-feed" src="/video_feed" style="display: none;" alt="Video Feed">
+            <button id="start-button">カメラ起動</button>
+        </div>
+
+        <script>
+        document.getElementById('start-button').addEventListener('click', function() {
+            const videoFeed = document.getElementById('video-feed');
+            // 表示させる
+            videoFeed.style.display = 'block';
+            // ボタンを非表示にする（任意）
+            this.style.display = 'none';
+        });
+        </script>
+        
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"></script>
-    <script src="/static/script.js"></script>
+    <script>
+        // メッセージ表示
+        function showMessage(message, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            
+            // 5秒後にメッセージを削除
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        // APIリクエスト共通処理
+        async function apiRequest(url, method = 'POST') {
+            try {
+                const response = await fetch(url, { method: method });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+                
+                return data;
+            } catch (error) {
+                showMessage('通信エラーが発生しました: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        // カメラ開始
+        document.getElementById('start-camera').addEventListener('click', async () => {
+            const result = await apiRequest('/start_camera');
+            if (result && result.success) {
+                document.getElementById('video-feed').style.display = 'block';
+            }
+        });
+
+        // カメラ停止
+        document.getElementById('stop-camera').addEventListener('click', async () => {
+            const result = await apiRequest('/stop_camera');
+            if (result && result.success) {
+                document.getElementById('video-feed').style.display = 'none';
+            }
+        });
+
+        // 撮影
+        document.getElementById('capture').addEventListener('click', async () => {
+            await apiRequest('/capture');
+        });
+
+        // 比較
+        document.getElementById('compare').addEventListener('click', async () => {
+            await apiRequest('/compare');
+        });
+
+        // 結果表示（別画面に遷移）
+        document.getElementById('show-results').addEventListener('click', () => {
+            window.open('/results', '_blank');
+        });
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            showMessage('ページが読み込まれました。まずカメラを開始してください。');
+        });
+    </script>
 </body>
 </html>
