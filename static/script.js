@@ -160,35 +160,8 @@ class FaceAnalysisApp {
     }
 
     displayResults(result) {
-        const resultsDiv = document.getElementById('results');
-        const analysisGrid = document.getElementById('analysisGrid');
-        const descriptionsDiv = document.getElementById('descriptions');
-
-        // 数値データ表示
-        analysisGrid.innerHTML = '';
-        for (const [feature, data] of Object.entries(result.differences)) {
-            const changeClass = data.change_percent > 0 ? 'change-positive' : 'change-negative';
-            const featureDiv = document.createElement('div');
-            featureDiv.className = 'feature-item';
-            featureDiv.innerHTML = `
-                <div class="feature-name">${feature}</div>
-                <div class="feature-change ${changeClass}">
-                    ${data.change_percent > 0 ? '+' : ''}${data.change_percent.toFixed(1)}%
-                    (${data.pixel_change > 0 ? '+' : ''}${data.pixel_change.toFixed(1)}px)
-                </div>
-            `;
-            analysisGrid.appendChild(featureDiv);
-        }
-
-        // AI分析結果表示
-        descriptionsDiv.innerHTML = `
-            <h3>AI分析による詳細</h3>
-            <ul>
-                ${result.descriptions.map(desc => `<li>${desc}</li>`).join('')}
-            </ul>
-        `;
-
-        resultsDiv.classList.remove('hidden');
+        // トップページでは結果を表示せず、結果表示ボタンで結果ページに遷移
+        this.showSuccess('分析が完了しました。結果表示ボタンをクリックして詳細を確認してください。');
     }
 
     async startCamera() {
