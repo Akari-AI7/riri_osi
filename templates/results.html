@@ -168,14 +168,12 @@
                     html += '<div class="numerical-data">';
                     html += '<h4>📊 詳細な数値データ</h4>';
                     html += '<ul>';
-                    
                     for (const [feature, values] of Object.entries(comparisonResult.numerical_data)) {
                         let changePercent = 'N/A';
                         let pastValue = 'N/A';
                         let currentValue = 'N/A';
                         let changeIcon = '✅';
                         let changeClass = 'change-stable';
-                        
                         if (values && typeof values === 'object') {
                             if (values.hasOwnProperty('change_percent') && 
                                 values.change_percent !== null && 
@@ -183,7 +181,6 @@
                                 !isNaN(values.change_percent)) {
                                 const changeVal = Math.abs(Number(values.change_percent));
                                 changePercent = Number(values.change_percent).toFixed(2);
-                                
                                 if (changeVal > 10) {
                                     changeIcon = '🚨';
                                     changeClass = 'change-increase';
@@ -195,14 +192,12 @@
                                     changeClass = 'change-stable';
                                 }
                             }
-                            
                             if (values.hasOwnProperty('past_value') && 
                                 values.past_value !== null && 
                                 values.past_value !== undefined &&
                                 !isNaN(values.past_value)) {
                                 pastValue = Number(values.past_value).toFixed(2);
                             }
-                            
                             if (values.hasOwnProperty('current_value') && 
                                 values.current_value !== null && 
                                 values.current_value !== undefined &&
@@ -210,7 +205,6 @@
                                 currentValue = Number(values.current_value).toFixed(2);
                             }
                         }
-                        
                         html += `<li>${changeIcon} <strong>${feature}:</strong> 
                                  <span class="change-indicator ${changeClass}">変化率 ${changePercent}%</span> 
                                  (過去値: ${pastValue}, 現在値: ${currentValue})</li>`;
