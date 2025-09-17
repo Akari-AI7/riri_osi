@@ -341,6 +341,25 @@ class FaceAnalysisApp {
         drawPoints(OUTER_LIPS, '#ff33ff');  // 口: 紫
         drawPoints(FACE_OVAL, '#ffd400');   // 顔輪郭: 黄
 
+        // 楕円ガイドの描画（app.pyと同様）
+        const centerX = cw / 2;
+        const centerY = ch / 2;
+        const radiusX = cw / 4;
+        const radiusY = ch / 3;
+        
+        // 半透明の楕円（塗りつぶし）
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // 楕円の輪郭
+        ctx.strokeStyle = '#00c8c8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctx.stroke();
+
         // 主要キーポイントにラベル
         const labelPoint = (idx, label, color) => {
             const p = points[idx];
