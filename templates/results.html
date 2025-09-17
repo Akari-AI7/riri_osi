@@ -28,6 +28,15 @@
                 </div>
             </div>
             
+            <!-- 顔分析オーバーレイセクション -->
+            <div id="face-overlay-section" class="section">
+                <h3>🎨 顔分析オーバーレイ</h3>
+                <div id="face-overlay-container" style="position: relative; display: inline-block;">
+                    <canvas id="faceOverlayCanvas" width="400" height="400" style="border: 1px solid #ccc; border-radius: 8px;"></canvas>
+                    <div id="overlay-legend" style="margin-top: 10px; font-size: 14px;"></div>
+                </div>
+            </div>
+            
             <!-- 比較結果セクション -->
             <div id="comparison-section" class="section">
                 <h3>🔍 比較分析結果</h3>
@@ -125,6 +134,9 @@
                 comparisonContent.innerHTML = '<p class="no-data">比較データがありません。先にメイン画面で比較分析を行ってください。</p>';
                 return;
             }
+            
+            // 顔分析オーバーレイを描画
+            drawFaceOverlay(comparisonResult);
             
             console.log('比較結果の詳細:', comparisonResult);
             
@@ -256,6 +268,121 @@
             }
         }
         
+        // 顔分析オーバーレイを描画
+        function drawFaceOverlay(comparisonResult) {
+            const canvas = document.getElementById('faceOverlayCanvas');
+            const ctx = canvas.getContext('2d');
+            const legend = document.getElementById('overlay-legend');
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 顔の基本形状を描画
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const faceWidth = 200;
+            const faceHeight = 250;
+            
+            // 顔の輪郭
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, faceWidth/2, faceHeight/2, 0, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // 目、鼻、口の基本位置
+            const leftEyeX = centerX - 60;
+            const rightEyeX = centerX + 60;
+            const eyeY = centerY - 50;
+            const noseY = centerY;
+            const mouthY = centerY + 80;
+            
+            // 左目
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(leftEyeX, eyeY, 15, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 右目
+            ctx.fillStyle = '#0080ff';
+            ctx.beginPath();
+            ctx.arc(rightEyeX, eyeY, 15, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 鼻
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath();
+            ctx.arc(centerX, noseY, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 口
+            ctx.fillStyle = '#ff33ff';
+            ctx.beginPath();
+            ctx.arc(centerX, mouthY, 20, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 分析結果に基づくオーバーレイ
+            if (comparisonResult.numerical_data) {
+                let legendItems = [];
+                
+                for (const [feature, data] of Object.entries(comparisonResult.numerical_data)) {
+                    if (Math.abs(data.change_percent) > 5) {
+                        const changePercent = data.change_percent;
+                        const isIncrease = changePercent > 0;
+                        const color = isIncrease ? '#ff4444' : '#44ff44';
+                        const arrow = isIncrease ? '↗' : '↘';
+                        const text = isIncrease ? '拡大' : '縮小';
+                        
+                        // 部位に応じた位置に矢印とテキストを描画
+                        let x, y;
+                        switch(feature) {
+                            case '左目の幅':
+                            case '左目の高さ':
+                                x = leftEyeX;
+                                y = eyeY - 30;
+                                break;
+                            case '右目の幅':
+                            case '右目の高さ':
+                                x = rightEyeX;
+                                y = eyeY - 30;
+                                break;
+                            case '鼻の幅':
+                                x = centerX;
+                                y = noseY - 30;
+                                break;
+                            case '口の幅':
+                                x = centerX;
+                                y = mouthY - 30;
+                                break;
+                            case '顔の幅':
+                                x = centerX;
+                                y = centerY - 120;
+                                break;
+                            default:
+                                x = centerX;
+                                y = centerY - 150;
+                        }
+                        
+                        // 矢印とテキストを描画
+                        ctx.fillStyle = color;
+                        ctx.font = 'bold 16px sans-serif';
+                        ctx.fillText(arrow, x - 10, y);
+                        ctx.fillText(`${Math.abs(changePercent).toFixed(1)}%`, x + 10, y);
+                        
+                        // 凡例に追加
+                        legendItems.push(`<span style="color: ${color}; font-weight: bold;">${arrow} ${feature}: ${text} ${Math.abs(changePercent).toFixed(1)}%</span>`);
+                    }
+                }
+                
+                // 凡例を表示
+                if (legendItems.length > 0) {
+                    legend.innerHTML = '<strong>変化の詳細:</strong><br>' + legendItems.join('<br>');
+                } else {
+                    legend.innerHTML = '<span style="color: #666;">大きな変化は検出されませんでした</span>';
+                }
+            }
+        }
+
         // ページ読み込み時に結果をロード
         document.addEventListener('DOMContentLoaded', () => {
             loadResults();
