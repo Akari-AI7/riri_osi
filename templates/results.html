@@ -254,18 +254,7 @@
             
             comparisonContent.innerHTML = html;
             
-            // SVG図表を挿入
-            try {
-                if (comparisonResult.numerical_data) {
-                    const currentDiagramContainer = document.getElementById('current-face-diagram');
-                    if (currentDiagramContainer) {
-                        const faceDiagram = createFaceDiagram('現在', comparisonResult.numerical_data, true);
-                        currentDiagramContainer.appendChild(faceDiagram);
-                    }
-                }
-            } catch (error) {
-                console.error('顔図表作成エラー:', error);
-            }
+            // SVG図表の挿入は削除（createFaceDiagram関数が未定義のため）
         }
         
         // 顔分析オーバーレイを描画
