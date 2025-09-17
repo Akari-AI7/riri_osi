@@ -245,7 +245,8 @@ class FaceAnalysisApp {
         console.log('Initializing FaceMesh...');
         try {
             console.log('Creating FaceMesh instance...');
-            this.faceMesh = new FaceMeshNS.FaceMesh({
+            // FaceMeshNS が直接コンストラクタの場合
+            this.faceMesh = new FaceMeshNS({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
             });
             console.log('Setting FaceMesh options...');
