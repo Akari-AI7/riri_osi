@@ -42,6 +42,11 @@ class FaceAnalysisApp {
             this.captureFromCamera();
         });
 
+        // 結果表示ボタン
+        document.getElementById('show-results').addEventListener('click', () => {
+            window.open('/results', '_blank');
+        });
+
         // ドラッグ&ドロップ
         this.setupDragAndDrop();
     }
@@ -230,6 +235,8 @@ class FaceAnalysisApp {
         // File オブジェクトを作成
         canvas.toBlob((blob) => {
             this.compareImage = new File([blob], 'captured.jpg', { type: 'image/jpeg' });
+            // 比較ボタンを表示
+            document.getElementById('compareBtn').style.display = 'inline-block';
         }, 'image/jpeg');
     }
 
@@ -301,7 +308,10 @@ class FaceAnalysisApp {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+            console.log('No face detected');
+            return;
+        }
         console.log('Drawing landmarks...');
 
         const video = document.getElementById('video');
